@@ -13,3 +13,24 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Gradle
+.gradle/
+build/
+
+# Local config
+local.properties
+
+# Android
+*.iml
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Emulator
+.android/
+
+# Logs
+*.log
