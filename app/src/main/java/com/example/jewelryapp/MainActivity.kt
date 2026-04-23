@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.jewelryapp.data.AppDatabase
 import com.example.jewelryapp.data.JewelryRepository
 import com.example.jewelryapp.ui.screens.JewelryAppScreen
+import com.example.jewelryapp.ui.theme.JewelryAppTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -21,7 +22,9 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val viewModel: JewelryViewModel = viewModel(factory = factory)
-            JewelryAppScreen(viewModel = viewModel)
+            JewelryAppTheme {
+                JewelryAppScreen(viewModel = viewModel)
+            }
         }
     }
 }

@@ -1,121 +1,101 @@
 package com.example.jewelryapp.ui.screens
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import com.example.jewelryapp.JewelryViewModel
-import com.example.jewelryapp.ui.components.SaleCard
-import com.example.jewelryapp.ui.dialogs.AddMaterialDialog
-import com.example.jewelryapp.ui.dialogs.AddSaleDialog
+import com.example.jewelryapp.ui.dialogs.AddMaterialBottomSheet
+import com.example.jewelryapp.ui.dialogs.AddSaleBottomSheet
+import com.example.jewelryapp.ui.theme.GoldBg
+import com.example.jewelryapp.ui.theme.GoldInk
+import com.example.jewelryapp.ui.theme.Ink
+import com.example.jewelryapp.ui.theme.Surface
+
+private enum class AppTab { Home, Sales, Materials, Analytics }
 
 @Composable
 fun JewelryAppScreen(viewModel: JewelryViewModel) {
-    var showSaleDialog by remember { mutableStateOf(false) }
-    var showMaterialDialog by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(AppTab.Home) }
+    var showSaleSheet     by remember { mutableStateOf(false) }
+    var showMaterialSheet by remember { mutableStateOf(false) }
 
-    val sales by viewModel.sales.collectAsState()
+    val sales     by viewModel.sales.collectAsState()
     val materials by viewModel.materials.collectAsState()
 
-    val totalProfit = sales.sumOf { it.sale.profit }
-    val salesCount = sales.size
-    val averageProfit = if (salesCount > 0) totalProfit / salesCount else 0
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "Юнит-экономика украшений",
-            style = MaterialTheme.typography.headlineMedium
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = { showMaterialDialog = true },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Добавить материал")
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Button(
-            onClick = { showSaleDialog = true },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Добавить продажу")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text("Аналитика", style = MaterialTheme.typography.titleSmall)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("Материалов: ${materials.size}")
-                Text("Продаж: $salesCount")
-                Text(
-                    text = "Общая прибыль: $totalProfit ₽",
-                    color = if (totalProfit >= 0) Color(0xFF2E7D32) else Color(0xFFC62828)
-                )
-                Text(
-                    text = "Средняя прибыль: $averageProfit ₽",
-                    color = if (averageProfit >= 0) Color(0xFF2E7D32) else Color(0xFFC62828)
-                )
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = {
+            NavigationBar(containerColor = Surface, contentColor = Ink) {
+                listOf(
+                    Triple(AppTab.Home,      "Главная",    Icons.Filled.Home),
+                    Triple(AppTab.Sales,     "Продажи",    Icons.Filled.ShoppingCart),
+                    Triple(AppTab.Materials, "Материалы",  Icons.Filled.Star),
+                    Triple(AppTab.Analytics, "Аналитика",  Icons.Filled.List)
+                ).forEach { (tab, label, icon) ->
+                    val selected = selectedTab == tab
+                    NavigationBarItem(
+                        selected = selected,
+                        onClick  = { selectedTab = tab },
+                        icon = { Icon(icon, contentDescription = label) },
+                        label = { Text(label) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor   = GoldInk,
+                            selectedTextColor   = GoldInk,
+                            indicatorColor      = GoldBg,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                }
             }
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "История продаж",
-            style = MaterialTheme.typography.titleMedium
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(sales) { sale ->
-                SaleCard(
-                    sale = sale,
-                    onDelete = { viewModel.deleteSale(sale) }
+    ) { innerPadding ->
+        Box(Modifier.padding(innerPadding)) {
+            when (selectedTab) {
+                AppTab.Home -> HomeScreen(
+                    sales     = sales,
+                    materials = materials,
+                    onAddSale     = { showSaleSheet = true },
+                    onAddMaterial = { showMaterialSheet = true }
                 )
+                AppTab.Sales -> SalesScreen(
+                    sales        = sales,
+                    onDeleteSale = { viewModel.deleteSale(it) },
+                    onAddSale    = { showSaleSheet = true }
+                )
+                AppTab.Materials -> MaterialsScreen(
+                    materials     = materials,
+                    onAddMaterial = { showMaterialSheet = true }
+                )
+                AppTab.Analytics -> AnalyticsScreen(sales = sales)
             }
         }
     }
 
-    if (showSaleDialog) {
-        AddSaleDialog(
+    if (showSaleSheet) {
+        AddSaleBottomSheet(
             materials = materials,
-            onDismiss = { showSaleDialog = false },
-            onConfirm = { name, price, channel, selectedMaterials ->
-                viewModel.addSale(
-                    name = name,
-                    salePrice = price,
-                    channel = channel,
-                    selectedMaterials = selectedMaterials
-                )
-                showSaleDialog = false
+            onDismiss = { showSaleSheet = false },
+            onConfirm = { name, price, channel, mats ->
+                viewModel.addSale(name, price, channel, mats)
+                showSaleSheet = false
             }
         )
     }
 
-    if (showMaterialDialog) {
-        AddMaterialDialog(
-            onDismiss = { showMaterialDialog = false },
+    if (showMaterialSheet) {
+        AddMaterialBottomSheet(
+            onDismiss = { showMaterialSheet = false },
             onConfirm = { name, cost ->
                 viewModel.addMaterial(name, cost)
-                showMaterialDialog = false
+                showMaterialSheet = false
             }
         )
     }
