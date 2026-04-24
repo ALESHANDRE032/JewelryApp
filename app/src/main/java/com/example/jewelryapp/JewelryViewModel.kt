@@ -30,29 +30,35 @@ class JewelryViewModel(
         )
 
     fun addMaterial(name: String, cost: Int) {
-        viewModelScope.launch {
-            repository.addMaterial(name, cost)
-        }
+        viewModelScope.launch { repository.addMaterial(name, cost) }
+    }
+
+    fun updateMaterial(material: MaterialEntity) {
+        viewModelScope.launch { repository.updateMaterial(material) }
+    }
+
+    fun deleteMaterial(material: MaterialEntity) {
+        viewModelScope.launch { repository.deleteMaterial(material) }
     }
 
     fun deleteSale(sale: SaleWithMaterials) {
+        viewModelScope.launch { repository.deleteSale(sale) }
+    }
+
+    fun addSale(name: String, salePrice: Int, channel: String, selectedMaterials: List<MaterialEntity>) {
         viewModelScope.launch {
-            repository.deleteSale(sale)
+            repository.addSale(
+                name = name, salePrice = salePrice,
+                channel = channel, selectedMaterials = selectedMaterials
+            )
         }
     }
 
-    fun addSale(
-        name: String,
-        salePrice: Int,
-        channel: String,
-        selectedMaterials: List<MaterialEntity>
-    ) {
+    fun updateSale(saleId: Int, name: String, salePrice: Int, channel: String, selectedMaterials: List<MaterialEntity>) {
         viewModelScope.launch {
-            repository.addSale(
-                name = name,
-                salePrice = salePrice,
-                channel = channel,
-                selectedMaterials = selectedMaterials
+            repository.updateSale(
+                saleId = saleId, name = name, salePrice = salePrice,
+                channel = channel, selectedMaterials = selectedMaterials
             )
         }
     }

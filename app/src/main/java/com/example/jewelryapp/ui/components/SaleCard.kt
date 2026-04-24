@@ -13,9 +13,12 @@ import com.example.jewelryapp.data.SaleWithMaterials
 import com.example.jewelryapp.ui.theme.*
 
 @Composable
-fun SaleCard(sale: SaleWithMaterials, onDelete: (() -> Unit)?) {
-    val margin = if (sale.sale.salePrice > 0)
-        (sale.sale.profit * 100 / sale.sale.salePrice) else 0
+fun SaleCard(
+    sale: SaleWithMaterials,
+    onDelete: (() -> Unit)?,
+    onEdit: (() -> Unit)? = null
+) {
+    val margin   = if (sale.sale.salePrice > 0) (sale.sale.profit * 100 / sale.sale.salePrice) else 0
     val isProfit = sale.sale.profit >= 0
 
     Surface(
@@ -29,7 +32,6 @@ fun SaleCard(sale: SaleWithMaterials, onDelete: (() -> Unit)?) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Avatar
             Box(
                 modifier = Modifier
                     .size(52.dp)
@@ -44,7 +46,6 @@ fun SaleCard(sale: SaleWithMaterials, onDelete: (() -> Unit)?) {
                 )
             }
 
-            // Name + meta
             Column(Modifier.weight(1f)) {
                 Text(sale.sale.name, style = MaterialTheme.typography.titleMedium, color = Ink)
                 Spacer(Modifier.height(2.dp))
@@ -55,15 +56,10 @@ fun SaleCard(sale: SaleWithMaterials, onDelete: (() -> Unit)?) {
                 )
             }
 
-            // Trailing: profit chip + optional delete
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                // Profit chip
                 Box(
                     modifier = Modifier
-                        .background(
-                            if (isProfit) ProfitBg else LossBg,
-                            RoundedCornerShape(100.dp)
-                        )
+                        .background(if (isProfit) ProfitBg else LossBg, RoundedCornerShape(100.dp))
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
@@ -73,16 +69,32 @@ fun SaleCard(sale: SaleWithMaterials, onDelete: (() -> Unit)?) {
                     )
                 }
 
-                if (onDelete != null) {
-                    TextButton(
-                        onClick = onDelete,
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                    ) {
-                        Text(
-                            "Удалить",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Loss
-                        )
+                if (onEdit != null || onDelete != null) {
+                    Row {
+                        if (onEdit != null) {
+                            TextButton(
+                                onClick = onEdit,
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                            ) {
+                                Text(
+                                    "Изменить",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Muted
+                                )
+                            }
+                        }
+                        if (onDelete != null) {
+                            TextButton(
+                                onClick = onDelete,
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                            ) {
+                                Text(
+                                    "Удалить",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Loss
+                                )
+                            }
+                        }
                     }
                 }
             }

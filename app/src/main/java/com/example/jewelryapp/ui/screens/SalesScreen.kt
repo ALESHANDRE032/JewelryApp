@@ -17,6 +17,7 @@ import com.example.jewelryapp.ui.theme.*
 fun SalesScreen(
     sales: List<SaleWithMaterials>,
     onDeleteSale: (SaleWithMaterials) -> Unit,
+    onEditSale: (SaleWithMaterials) -> Unit,
     onAddSale: () -> Unit
 ) {
     val channels = listOf("Все") + sales.map { it.sale.channel }.distinct()
@@ -57,8 +58,6 @@ fun SalesScreen(
                     Text("${sales.size} записей", style = MaterialTheme.typography.bodyMedium, color = Muted)
                     Text("Продажи", style = MaterialTheme.typography.displaySmall, color = Ink)
                     Spacer(Modifier.height(16.dp))
-
-                    // Stats row
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         StatChip("Выручка", "$totalRevenue ₽", Modifier.weight(1f))
                         StatChip("Прибыль", "$totalProfit ₽", Modifier.weight(1f))
@@ -97,7 +96,11 @@ fun SalesScreen(
 
             items(filtered) { sale ->
                 Box(Modifier.padding(horizontal = 20.dp)) {
-                    SaleCard(sale = sale, onDelete = { onDeleteSale(sale) })
+                    SaleCard(
+                        sale     = sale,
+                        onDelete = { onDeleteSale(sale) },
+                        onEdit   = { onEditSale(sale) }
+                    )
                 }
             }
 

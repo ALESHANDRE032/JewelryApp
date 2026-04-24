@@ -12,12 +12,15 @@ class JewelryRepository(
         saleDao.getAllSalesWithMaterials()
 
     suspend fun addMaterial(name: String, cost: Int) {
-        materialDao.insertMaterial(
-            MaterialEntity(
-                name = name,
-                cost = cost
-            )
-        )
+        materialDao.insertMaterial(MaterialEntity(name = name, cost = cost))
+    }
+
+    suspend fun updateMaterial(material: MaterialEntity) {
+        materialDao.updateMaterial(material)
+    }
+
+    suspend fun deleteMaterial(material: MaterialEntity) {
+        materialDao.deleteMaterial(material)
     }
 
     suspend fun deleteSale(sale: SaleWithMaterials) {
@@ -31,23 +34,30 @@ class JewelryRepository(
         selectedMaterials: List<MaterialEntity>
     ) {
         val profit = salePrice - selectedMaterials.sumOf { it.cost }
-
         val saleId = saleDao.insertSale(
-            SaleEntity(
-                name = name,
-                salePrice = salePrice,
-                channel = channel,
-                profit = profit
-            )
+            SaleEntity(name = name, salePrice = salePrice, channel = channel, profit = profit)
         ).toInt()
+        saleDao.insertSaleMaterialRefs(
+            selectedMaterials.map { SaleMaterialCrossRef(saleId = saleId, materialId = it.id) }
+        )
+    }
 
-        val refs = selectedMaterials.map { material ->
-            SaleMaterialCrossRef(
-                saleId = saleId,
-                materialId = material.id
+    suspend fun updateSale(
+        saleId: Int,
+        name: String,
+        salePrice: Int,
+        channel: String,
+        selectedMaterials: List<MaterialEntity>
+    ) {
+        val profit = salePrice - selectedMaterials.sumOf { it.cost }
+        saleDao.updateSale(
+            SaleEntity(id = saleId, name = name, salePrice = salePrice, channel = channel, profit = profit)
+        )
+        saleDao.deleteSaleMaterialRefs(saleId)
+        if (selectedMaterials.isNotEmpty()) {
+            saleDao.insertSaleMaterialRefs(
+                selectedMaterials.map { SaleMaterialCrossRef(saleId = saleId, materialId = it.id) }
             )
         }
-
-        saleDao.insertSaleMaterialRefs(refs)
     }
 }

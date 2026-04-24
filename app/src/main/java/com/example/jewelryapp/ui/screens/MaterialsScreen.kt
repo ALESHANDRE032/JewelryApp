@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -15,7 +18,9 @@ import com.example.jewelryapp.ui.theme.*
 @Composable
 fun MaterialsScreen(
     materials: List<MaterialEntity>,
-    onAddMaterial: () -> Unit
+    onAddMaterial: () -> Unit,
+    onEditMaterial: (MaterialEntity) -> Unit,
+    onDeleteMaterial: (MaterialEntity) -> Unit
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -49,7 +54,12 @@ fun MaterialsScreen(
             }
 
             items(materials) { material ->
-                MaterialRow(material = material, modifier = Modifier.padding(horizontal = 20.dp))
+                MaterialRow(
+                    material = material,
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    onEdit   = { onEditMaterial(material) },
+                    onDelete = { onDeleteMaterial(material) }
+                )
             }
 
             item { Spacer(Modifier.height(80.dp)) }
@@ -58,27 +68,50 @@ fun MaterialsScreen(
 }
 
 @Composable
-private fun MaterialRow(material: MaterialEntity, modifier: Modifier = Modifier) {
+private fun MaterialRow(
+    material: MaterialEntity,
+    modifier: Modifier = Modifier,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = SurfaceAlt,
         shape = RoundedCornerShape(20.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = material.name,
                 style = MaterialTheme.typography.titleMedium,
-                color = Ink
+                color = Ink,
+                modifier = Modifier.weight(1f)
             )
             Text(
                 text = "${material.cost} ₽",
                 style = NumberLg,
                 color = Gold
             )
+            Spacer(Modifier.width(4.dp))
+            IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    imageVector = Icons.Filled.Edit,
+                    contentDescription = "Изменить",
+                    tint = Muted,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Удалить",
+                    tint = Loss,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }

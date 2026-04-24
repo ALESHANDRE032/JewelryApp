@@ -1,8 +1,10 @@
 package com.example.jewelryapp.data
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -13,4 +15,10 @@ interface MaterialDao {
 
     @Insert
     suspend fun insertMaterial(material: MaterialEntity)
+
+    @Update
+    suspend fun updateMaterial(material: MaterialEntity)
+
+    @Delete
+    suspend fun deleteMaterial(material: MaterialEntity)
 }

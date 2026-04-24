@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -28,7 +29,6 @@ fun HomeScreen(
 ) {
     val totalRevenue = sales.sumOf { it.sale.salePrice }
     val totalProfit  = sales.sumOf { it.sale.profit }
-    val totalCost    = totalRevenue - totalProfit
     val margin       = if (totalRevenue > 0) (totalProfit * 100 / totalRevenue) else 0
     val month        = LocalDate.now()
         .month.getDisplayName(TextStyle.FULL_STANDALONE, Locale("ru"))
@@ -49,7 +49,6 @@ fun HomeScreen(
 
         Spacer(Modifier.height(20.dp))
 
-        // Hero card
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -58,11 +57,7 @@ fun HomeScreen(
                 .padding(22.dp)
         ) {
             Column {
-                Text(
-                    "ВЫРУЧКА ЗА МЕСЯЦ",
-                    style = Eyebrow,
-                    color = GoldSoft
-                )
+                Text("ВЫРУЧКА ЗА МЕСЯЦ", style = Eyebrow, color = GoldSoft)
                 Spacer(Modifier.height(4.dp))
                 Text("$totalRevenue ₽", style = DisplayLg, color = Surface)
                 Spacer(Modifier.height(12.dp))
@@ -78,7 +73,6 @@ fun HomeScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Action buttons
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
                 onClick = onAddSale,
@@ -99,15 +93,50 @@ fun HomeScreen(
             }
         }
 
-        Spacer(Modifier.height(28.dp))
-
         if (sales.isNotEmpty()) {
-            Row(
+            Spacer(Modifier.height(16.dp))
+
+            val bestChannelEntry = sales
+                .groupBy { it.sale.channel }
+                .mapValues { (_, v) -> v.sumOf { it.sale.profit } }
+                .maxByOrNull { it.value }
+            val bestProduct = sales.maxByOrNull { it.sale.profit }
+            val worstSale   = sales.filter { it.sale.profit < 0 }.minByOrNull { it.sale.profit }
+
+            Surface(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                color = SurfaceAlt,
+                shape = RoundedCornerShape(20.dp)
             ) {
-                Text("Последние продажи", style = MaterialTheme.typography.titleLarge, color = Ink)
+                Column(modifier = Modifier.padding(16.dp)) {
+                    InsightRow(
+                        label       = "ЛУЧШИЙ КАНАЛ",
+                        name        = bestChannelEntry?.key ?: "—",
+                        amount      = bestChannelEntry?.let { "+${it.value} ₽" } ?: "—",
+                        amountColor = Profit
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), color = Divider)
+                    InsightRow(
+                        label       = "ТОПОВЫЙ ТОВАР",
+                        name        = bestProduct?.sale?.name ?: "—",
+                        amount      = bestProduct?.let { "+${it.sale.profit} ₽" } ?: "—",
+                        amountColor = Profit
+                    )
+                    if (worstSale != null) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), color = Divider)
+                        InsightRow(
+                            label       = "УБЫТОЧНАЯ ПРОДАЖА",
+                            name        = worstSale.sale.name,
+                            amount      = "${worstSale.sale.profit} ₽",
+                            amountColor = Loss
+                        )
+                    }
+                }
             }
+
+            Spacer(Modifier.height(28.dp))
+
+            Text("Последние продажи", style = MaterialTheme.typography.titleLarge, color = Ink)
             Spacer(Modifier.height(12.dp))
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 sales.take(3).forEach { sale ->
@@ -115,6 +144,22 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun InsightRow(label: String, name: String, amount: String, amountColor: Color) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, style = Eyebrow, color = Muted)
+            Spacer(Modifier.height(2.dp))
+            Text(name, style = MaterialTheme.typography.titleMedium, color = Ink)
+        }
+        Text(amount, style = NumberLg, color = amountColor)
     }
 }
 

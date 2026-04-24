@@ -2,26 +2,30 @@ package com.example.jewelryapp.ui.dialogs
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.jewelryapp.data.MaterialEntity
 import com.example.jewelryapp.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddMaterialBottomSheet(
+    initialMaterial: MaterialEntity? = null,
     onDismiss: () -> Unit,
     onConfirm: (String, Int) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var cost by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(initialMaterial?.name ?: "") }
+    var cost by remember { mutableStateOf(if (initialMaterial != null) "${initialMaterial.cost}" else "") }
 
     val isValid = name.isNotBlank() && cost.isNotBlank()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor  = Surface,
+        containerColor   = Surface,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -32,12 +36,12 @@ fun AddMaterialBottomSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                "В запасы мастерской",
-                style = com.example.jewelryapp.ui.theme.Eyebrow,
+                if (initialMaterial != null) "Редактировать материал" else "В запасы мастерской",
+                style = Eyebrow,
                 color = Muted
             )
             Text(
-                "Новый материал",
+                if (initialMaterial != null) "Изменить материал" else "Новый материал",
                 style = MaterialTheme.typography.displaySmall,
                 color = Ink
             )
@@ -46,13 +50,15 @@ fun AddMaterialBottomSheet(
 
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it },
+                onValueChange = { input ->
+                    name = input.replaceFirstChar { it.uppercase() }
+                },
                 label = { Text("Название") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor   = Gold,
-                    unfocusedBorderColor = Divider,
+                    focusedBorderColor      = Gold,
+                    unfocusedBorderColor    = Divider,
                     focusedContainerColor   = GoldBg,
                     unfocusedContainerColor = SurfaceAlt
                 )
@@ -60,16 +66,19 @@ fun AddMaterialBottomSheet(
 
             OutlinedTextField(
                 value = cost,
-                onValueChange = { cost = it },
+                onValueChange = { input ->
+                    if (input.all { it.isDigit() || it == ',' }) cost = input
+                },
                 label = { Text("Цена закупки, ₽") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor   = Gold,
-                    unfocusedBorderColor = Divider,
+                    focusedBorderColor      = Gold,
+                    unfocusedBorderColor    = Divider,
                     focusedContainerColor   = GoldBg,
                     unfocusedContainerColor = SurfaceAlt
-                )
+                ),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
 
             Spacer(Modifier.height(4.dp))
@@ -88,18 +97,25 @@ fun AddMaterialBottomSheet(
                     Text("Отмена", style = MaterialTheme.typography.labelLarge)
                 }
                 Button(
-                    onClick = { onConfirm(name, cost.toIntOrNull() ?: 0) },
+                    onClick = {
+                        val costInt = cost.replace(',', '.').toDoubleOrNull()?.toInt()
+                            ?: cost.toIntOrNull() ?: 0
+                        onConfirm(name.trimEnd(), costInt)
+                    },
                     enabled = isValid,
                     modifier = Modifier.weight(2f).height(52.dp),
                     shape = RoundedCornerShape(100.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Ink,
-                        contentColor   = Surface,
+                        containerColor         = Ink,
+                        contentColor           = Surface,
                         disabledContainerColor = SurfaceDeep,
                         disabledContentColor   = Muted
                     )
                 ) {
-                    Text("Сохранить материал", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        if (initialMaterial != null) "Сохранить" else "Сохранить материал",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
             }
         }

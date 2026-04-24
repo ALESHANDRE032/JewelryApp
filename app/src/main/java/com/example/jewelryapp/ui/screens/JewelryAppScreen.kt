@@ -11,6 +11,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.example.jewelryapp.JewelryViewModel
+import com.example.jewelryapp.data.MaterialEntity
+import com.example.jewelryapp.data.SaleWithMaterials
 import com.example.jewelryapp.ui.dialogs.AddMaterialBottomSheet
 import com.example.jewelryapp.ui.dialogs.AddSaleBottomSheet
 import com.example.jewelryapp.ui.theme.GoldBg
@@ -22,9 +24,11 @@ private enum class AppTab { Home, Sales, Materials, Analytics }
 
 @Composable
 fun JewelryAppScreen(viewModel: JewelryViewModel) {
-    var selectedTab by remember { mutableStateOf(AppTab.Home) }
+    var selectedTab       by remember { mutableStateOf(AppTab.Home) }
     var showSaleSheet     by remember { mutableStateOf(false) }
     var showMaterialSheet by remember { mutableStateOf(false) }
+    var editingSale       by remember { mutableStateOf<SaleWithMaterials?>(null) }
+    var editingMaterial   by remember { mutableStateOf<MaterialEntity?>(null) }
 
     val sales     by viewModel.sales.collectAsState()
     val materials by viewModel.materials.collectAsState()
@@ -34,16 +38,16 @@ fun JewelryAppScreen(viewModel: JewelryViewModel) {
         bottomBar = {
             NavigationBar(containerColor = Surface, contentColor = Ink) {
                 listOf(
-                    Triple(AppTab.Home,      "Главная",    Icons.Filled.Home),
-                    Triple(AppTab.Sales,     "Продажи",    Icons.Filled.ShoppingCart),
-                    Triple(AppTab.Materials, "Материалы",  Icons.Filled.Star),
-                    Triple(AppTab.Analytics, "Аналитика",  Icons.Filled.List)
+                    Triple(AppTab.Home,      "Главная",   Icons.Filled.Home),
+                    Triple(AppTab.Sales,     "Продажи",   Icons.Filled.ShoppingCart),
+                    Triple(AppTab.Materials, "Материалы", Icons.Filled.Star),
+                    Triple(AppTab.Analytics, "Аналитика", Icons.Filled.List)
                 ).forEach { (tab, label, icon) ->
                     val selected = selectedTab == tab
                     NavigationBarItem(
                         selected = selected,
                         onClick  = { selectedTab = tab },
-                        icon = { Icon(icon, contentDescription = label) },
+                        icon  = { Icon(icon, contentDescription = label) },
                         label = { Text(label) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor   = GoldInk,
@@ -60,19 +64,22 @@ fun JewelryAppScreen(viewModel: JewelryViewModel) {
         Box(Modifier.padding(innerPadding)) {
             when (selectedTab) {
                 AppTab.Home -> HomeScreen(
-                    sales     = sales,
-                    materials = materials,
+                    sales         = sales,
+                    materials     = materials,
                     onAddSale     = { showSaleSheet = true },
                     onAddMaterial = { showMaterialSheet = true }
                 )
                 AppTab.Sales -> SalesScreen(
                     sales        = sales,
                     onDeleteSale = { viewModel.deleteSale(it) },
+                    onEditSale   = { editingSale = it },
                     onAddSale    = { showSaleSheet = true }
                 )
                 AppTab.Materials -> MaterialsScreen(
-                    materials     = materials,
-                    onAddMaterial = { showMaterialSheet = true }
+                    materials        = materials,
+                    onAddMaterial    = { showMaterialSheet = true },
+                    onEditMaterial   = { editingMaterial = it },
+                    onDeleteMaterial = { viewModel.deleteMaterial(it) }
                 )
                 AppTab.Analytics -> AnalyticsScreen(sales = sales)
             }
@@ -90,12 +97,35 @@ fun JewelryAppScreen(viewModel: JewelryViewModel) {
         )
     }
 
+    editingSale?.let { sale ->
+        AddSaleBottomSheet(
+            materials   = materials,
+            initialSale = sale,
+            onDismiss   = { editingSale = null },
+            onConfirm   = { name, price, channel, mats ->
+                viewModel.updateSale(sale.sale.id, name, price, channel, mats)
+                editingSale = null
+            }
+        )
+    }
+
     if (showMaterialSheet) {
         AddMaterialBottomSheet(
             onDismiss = { showMaterialSheet = false },
             onConfirm = { name, cost ->
                 viewModel.addMaterial(name, cost)
                 showMaterialSheet = false
+            }
+        )
+    }
+
+    editingMaterial?.let { material ->
+        AddMaterialBottomSheet(
+            initialMaterial = material,
+            onDismiss       = { editingMaterial = null },
+            onConfirm       = { name, cost ->
+                viewModel.updateMaterial(MaterialEntity(id = material.id, name = name, cost = cost))
+                editingMaterial = null
             }
         )
     }
