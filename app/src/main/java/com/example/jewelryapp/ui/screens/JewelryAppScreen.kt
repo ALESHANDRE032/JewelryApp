@@ -32,9 +32,19 @@ fun JewelryAppScreen(viewModel: JewelryViewModel) {
 
     val sales     by viewModel.sales.collectAsState()
     val materials by viewModel.materials.collectAsState()
+    val error     by viewModel.error.collectAsState()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(error) {
+        if (error != null) {
+            snackbarHostState.showSnackbar(error!!)
+            viewModel.clearError()
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             NavigationBar(containerColor = Surface, contentColor = Ink) {
                 listOf(
@@ -102,8 +112,8 @@ fun JewelryAppScreen(viewModel: JewelryViewModel) {
             materials   = materials,
             initialSale = sale,
             onDismiss   = { editingSale = null },
-            onConfirm   = { name, price, channel, mats ->
-                viewModel.updateSale(sale.sale.id, name, price, channel, mats)
+            onConfirm   = { name, price, channel, newMats ->
+                viewModel.updateSale(sale.sale.id, name, price, channel, sale.materials, newMats)
                 editingSale = null
             }
         )
@@ -112,8 +122,8 @@ fun JewelryAppScreen(viewModel: JewelryViewModel) {
     if (showMaterialSheet) {
         AddMaterialBottomSheet(
             onDismiss = { showMaterialSheet = false },
-            onConfirm = { name, cost ->
-                viewModel.addMaterial(name, cost)
+            onConfirm = { name, cost, qty, unit ->
+                viewModel.addMaterial(name, cost, qty, unit)
                 showMaterialSheet = false
             }
         )
@@ -123,8 +133,17 @@ fun JewelryAppScreen(viewModel: JewelryViewModel) {
         AddMaterialBottomSheet(
             initialMaterial = material,
             onDismiss       = { editingMaterial = null },
-            onConfirm       = { name, cost ->
-                viewModel.updateMaterial(MaterialEntity(id = material.id, name = name, cost = cost))
+            onConfirm       = { name, cost, qty, unit ->
+                viewModel.updateMaterial(
+                    MaterialEntity(
+                        id       = material.id,
+                        name     = name,
+                        cost     = cost,
+                        quantity = qty,
+                        unit     = unit,
+                        unitCost = 0.0  // Repository recomputes this
+                    )
+                )
                 editingMaterial = null
             }
         )

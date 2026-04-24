@@ -13,6 +13,9 @@ interface MaterialDao {
     @Query("SELECT * FROM materials ORDER BY id DESC")
     fun getAllMaterials(): Flow<List<MaterialEntity>>
 
+    @Query("SELECT * FROM materials WHERE id = :id")
+    suspend fun getMaterialById(id: Int): MaterialEntity?
+
     @Insert
     suspend fun insertMaterial(material: MaterialEntity)
 

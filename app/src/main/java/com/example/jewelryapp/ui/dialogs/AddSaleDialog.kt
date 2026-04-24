@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.jewelryapp.data.MaterialEntity
+import com.example.jewelryapp.data.MaterialWithUsage
 import com.example.jewelryapp.data.SaleWithMaterials
 import com.example.jewelryapp.ui.theme.*
 
@@ -22,23 +23,44 @@ fun AddSaleBottomSheet(
     materials: List<MaterialEntity>,
     initialSale: SaleWithMaterials? = null,
     onDismiss: () -> Unit,
-    onConfirm: (String, Int, String, List<MaterialEntity>) -> Unit
+    onConfirm: (String, Int, String, List<MaterialWithUsage>) -> Unit
 ) {
     var name    by remember { mutableStateOf(initialSale?.sale?.name ?: "") }
     var price   by remember { mutableStateOf(if (initialSale != null) "${initialSale.sale.salePrice}" else "") }
     var channel by remember { mutableStateOf(initialSale?.sale?.channel ?: "") }
 
-    val selectedMaterials = remember {
-        mutableStateListOf<MaterialEntity>().also { list ->
-            initialSale?.materials?.let { list.addAll(it) }
+    val initialSelectedIds = remember {
+        initialSale?.materials?.map { it.material.id }?.toSet() ?: emptySet()
+    }
+    var selectedIds by remember { mutableStateOf(initialSelectedIds) }
+
+    val quantities = remember {
+        mutableStateMapOf<Int, String>().also { map ->
+            initialSale?.materials?.forEach { usage ->
+                map[usage.material.id] = formatQty(usage.usedQuantity)
+            }
         }
     }
 
-    val costSum  = selectedMaterials.sumOf { it.cost }
     val priceInt = price.replace(',', '.').toDoubleOrNull()?.toInt() ?: price.toIntOrNull() ?: 0
+
+    val costSum = materials
+        .filter { it.id in selectedIds }
+        .sumOf { material ->
+            val qty = parseQty(quantities[material.id])
+            material.unitCost * qty
+        }.toInt()
+
     val profit   = priceInt - costSum
     val isProfit = profit >= 0
-    val isValid  = name.isNotBlank() && price.isNotBlank() && channel.isNotBlank()
+
+    val hasQtyErrors = materials.any { material ->
+        if (material.id !in selectedIds) return@any false
+        val qty = parseQty(quantities[material.id])
+        val available = availableStock(material, initialSale)
+        qty <= 0.0 || qty > available
+    }
+    val isValid = name.isNotBlank() && price.isNotBlank() && channel.isNotBlank() && !hasQtyErrors
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -95,33 +117,78 @@ fun AddSaleBottomSheet(
             if (materials.isNotEmpty()) {
                 Text("Выбери материалы:", style = MaterialTheme.typography.titleMedium, color = Ink)
 
-                LazyColumn(modifier = Modifier.height(160.dp)) {
+                LazyColumn(modifier = Modifier.heightIn(max = 240.dp)) {
                     items(materials) { material ->
-                        val isSelected = selectedMaterials.any { it.id == material.id }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .toggleable(value = isSelected, onValueChange = {
-                                    if (isSelected) selectedMaterials.removeAll { it.id == material.id }
-                                    else selectedMaterials.add(material)
-                                })
-                                .padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = isSelected,
-                                onCheckedChange = null,
-                                colors = CheckboxDefaults.colors(
-                                    checkedColor   = Gold,
-                                    uncheckedColor = Divider
+                        val isSelected = material.id in selectedIds
+                        val available  = availableStock(material, initialSale)
+                        val qtyStr     = quantities[material.id] ?: ""
+                        val qty        = parseQty(qtyStr)
+                        val qtyError   = isSelected && (qty <= 0.0 || qty > available)
+
+                        Column {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .toggleable(
+                                        value = isSelected,
+                                        onValueChange = { checked ->
+                                            selectedIds = if (checked) {
+                                                if (!quantities.containsKey(material.id))
+                                                    quantities[material.id] = "1"
+                                                selectedIds + material.id
+                                            } else {
+                                                selectedIds - material.id
+                                            }
+                                        }
+                                    )
+                                    .padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = isSelected,
+                                    onCheckedChange = null,
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor   = Gold,
+                                        uncheckedColor = Divider
+                                    )
                                 )
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "${material.name} · ${material.cost} ₽",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = Ink
-                            )
+                                Spacer(Modifier.width(8.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        material.name,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = Ink
+                                    )
+                                    Text(
+                                        "Остаток: ${formatQty(available)} ${material.unit}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (available <= 0.0) Loss else Muted
+                                    )
+                                }
+                            }
+
+                            if (isSelected) {
+                                OutlinedTextField(
+                                    value = qtyStr,
+                                    onValueChange = { input ->
+                                        if (input.all { it.isDigit() || it == ',' })
+                                            quantities[material.id] = input
+                                    },
+                                    label = { Text("Кол-во (${material.unit})") },
+                                    isError = qtyError,
+                                    supportingText = if (qtyError) {
+                                        { Text("Макс. ${formatQty(available)}", color = Loss) }
+                                    } else null,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 40.dp)
+                                        .padding(bottom = 4.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = fieldColors(),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine = true
+                                )
+                            }
                         }
                     }
                 }
@@ -132,7 +199,9 @@ fun AddSaleBottomSheet(
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
@@ -151,7 +220,15 @@ fun AddSaleBottomSheet(
             }
 
             Button(
-                onClick = { onConfirm(name.trimEnd(), priceInt, channel.trimEnd(), selectedMaterials.toList()) },
+                onClick = {
+                    val materialUsages = materials
+                        .filter { it.id in selectedIds }
+                        .mapNotNull { material ->
+                            val qty = parseQty(quantities[material.id])
+                            if (qty <= 0.0) null else MaterialWithUsage(material, qty)
+                        }
+                    onConfirm(name.trimEnd(), priceInt, channel.trimEnd(), materialUsages)
+                },
                 enabled = isValid,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(100.dp),
@@ -171,6 +248,18 @@ fun AddSaleBottomSheet(
     }
 }
 
+private fun availableStock(material: MaterialEntity, initialSale: SaleWithMaterials?): Double {
+    val oldUsed = initialSale?.materials?.find { it.material.id == material.id }?.usedQuantity ?: 0.0
+    return material.quantity + oldUsed
+}
+
+private fun parseQty(str: String?): Double =
+    str?.replace(',', '.')?.toDoubleOrNull() ?: 0.0
+
+private fun formatQty(qty: Double): String =
+    if (qty == qty.toLong().toDouble()) qty.toLong().toString() else "%.2f".format(qty)
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun fieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor      = Gold,

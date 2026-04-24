@@ -17,6 +17,7 @@ import com.example.jewelryapp.data.SaleWithMaterials
 import com.example.jewelryapp.ui.components.SaleCard
 import com.example.jewelryapp.ui.theme.*
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -35,6 +36,8 @@ fun HomeScreen(
         .replaceFirstChar { it.uppercase() }
     val heroSubtitle = if (totalProfit >= 0) "$month идёт хорошо." else "$month был непростым."
 
+    val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -43,9 +46,22 @@ fun HomeScreen(
             .padding(top = 24.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        Text("Мастерская", style = MaterialTheme.typography.bodyLarge, color = Muted)
-        Spacer(Modifier.height(4.dp))
-        Text(heroSubtitle, style = DisplayMd, color = Ink)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Column {
+                Text("Мастерская", style = MaterialTheme.typography.bodyLarge, color = Muted)
+                Spacer(Modifier.height(4.dp))
+                Text(heroSubtitle, style = DisplayMd, color = Ink)
+            }
+            Text(
+                text = today,
+                style = MaterialTheme.typography.bodySmall,
+                color = Muted
+            )
+        }
 
         Spacer(Modifier.height(20.dp))
 

@@ -84,12 +84,19 @@ private fun MaterialRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = material.name,
-                style = MaterialTheme.typography.titleMedium,
-                color = Ink,
-                modifier = Modifier.weight(1f)
-            )
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = material.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Ink
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = "Остаток: ${formatQty(material.quantity)} ${material.unit}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (material.quantity <= 0.0) Loss else Muted
+                )
+            }
             Text(
                 text = "${material.cost} ₽",
                 style = NumberLg,
@@ -115,3 +122,6 @@ private fun MaterialRow(
         }
     }
 }
+
+private fun formatQty(qty: Double): String =
+    if (qty == qty.toLong().toDouble()) qty.toLong().toString() else "%.2f".format(qty)

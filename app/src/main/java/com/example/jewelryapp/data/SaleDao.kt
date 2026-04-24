@@ -26,7 +26,10 @@ interface SaleDao {
     @Delete
     suspend fun deleteSale(sale: SaleEntity)
 
+    @Query("SELECT * FROM sale_material_cross_ref")
+    fun getAllCrossRefs(): Flow<List<SaleMaterialCrossRef>>
+
     @Transaction
     @Query("SELECT * FROM sales ORDER BY id DESC")
-    fun getAllSalesWithMaterials(): Flow<List<SaleWithMaterials>>
+    fun getAllSalesRaw(): Flow<List<SaleWithMaterialsRoom>>
 }

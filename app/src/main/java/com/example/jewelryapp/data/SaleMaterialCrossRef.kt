@@ -25,5 +25,6 @@ import androidx.room.Index
 )
 data class SaleMaterialCrossRef(
     val saleId: Int,
-    val materialId: Int
+    val materialId: Int,
+    val usedQuantity: Double = 1.0
 )
