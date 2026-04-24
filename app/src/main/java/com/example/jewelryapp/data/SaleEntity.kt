@@ -10,5 +10,7 @@ data class SaleEntity(
     val name: String,
     val salePrice: Int,
     val channel: String,
-    val profit: Int
+    val profit: Int,
+    val productId: Int? = null,
+    val extraExpensesCost: Int = 0
 )

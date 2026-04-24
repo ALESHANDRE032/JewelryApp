@@ -59,7 +59,8 @@ fun HomeScreen(
             Text(
                 text = today,
                 style = MaterialTheme.typography.bodySmall,
-                color = Muted
+                color = Muted,
+                softWrap = false
             )
         }
 

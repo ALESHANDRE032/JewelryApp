@@ -1,66 +1,71 @@
 package com.example.jewelryapp.ui.dialogs
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.example.jewelryapp.data.MaterialEntity
-import com.example.jewelryapp.data.MaterialWithUsage
+import com.example.jewelryapp.data.ProductEntity
+import com.example.jewelryapp.data.SaleExpenseEntity
 import com.example.jewelryapp.data.SaleWithMaterials
 import com.example.jewelryapp.ui.theme.*
+
+private data class ExpenseOption(val key: String, val label: String)
+
+private val EXPENSE_OPTIONS = listOf(
+    ExpenseOption("RENT",              "Аренда"),
+    ExpenseOption("DELIVERY_TO_STORE", "Доставка в магазин"),
+    ExpenseOption("COURIER",           "Курьер / доставка клиенту"),
+    ExpenseOption("STORE_COMMISSION",  "Комиссия магазина")
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddSaleBottomSheet(
-    materials: List<MaterialEntity>,
+    products: List<ProductEntity>,
     initialSale: SaleWithMaterials? = null,
     onDismiss: () -> Unit,
-    onConfirm: (String, Int, String, List<MaterialWithUsage>) -> Unit
+    onConfirm: (name: String, price: Int, channel: String, productId: Int?, expenses: List<SaleExpenseEntity>) -> Unit
 ) {
     var name    by remember { mutableStateOf(initialSale?.sale?.name ?: "") }
     var price   by remember { mutableStateOf(if (initialSale != null) "${initialSale.sale.salePrice}" else "") }
     var channel by remember { mutableStateOf(initialSale?.sale?.channel ?: "") }
 
-    val initialSelectedIds = remember {
-        initialSale?.materials?.map { it.material.id }?.toSet() ?: emptySet()
-    }
-    var selectedIds by remember { mutableStateOf(initialSelectedIds) }
+    var selectedProductId   by remember { mutableStateOf<Int?>(initialSale?.sale?.productId) }
+    var productMenuExpanded by remember { mutableStateOf(false) }
 
-    val quantities = remember {
-        mutableStateMapOf<Int, String>().also { map ->
-            initialSale?.materials?.forEach { usage ->
-                map[usage.material.id] = formatQty(usage.usedQuantity)
-            }
+    val selectedExpenseTypes = remember {
+        mutableStateOf(initialSale?.expenses?.map { it.expenseType }?.toSet() ?: emptySet<String>())
+    }
+    val expenseAmounts = remember {
+        mutableStateMapOf<String, String>().also { map ->
+            initialSale?.expenses?.forEach { e -> map[e.expenseType] = "${e.amount}" }
         }
     }
 
-    val priceInt = price.replace(',', '.').toDoubleOrNull()?.toInt() ?: price.toIntOrNull() ?: 0
+    // Products available for selection: qty > 0, OR the one already selected in edit mode
+    val availableProducts = remember(products, initialSale) {
+        val editProductId = initialSale?.sale?.productId
+        products.filter { it.quantity > 0 || it.id == editProductId }
+    }
 
-    val costSum = materials
-        .filter { it.id in selectedIds }
-        .sumOf { material ->
-            val qty = parseQty(quantities[material.id])
-            material.unitCost * qty
-        }.toInt()
+    val selectedProduct = availableProducts.find { it.id == selectedProductId }
+    val productCost     = selectedProduct?.expectedCost ?: 0
+    val priceInt        = price.replace(',', '.').toDoubleOrNull()?.toInt() ?: price.toIntOrNull() ?: 0
 
-    val profit   = priceInt - costSum
+    val expenseTotal = selectedExpenseTypes.value.sumOf { type ->
+        expenseAmounts[type]?.replace(',', '.')?.toDoubleOrNull()?.toInt() ?: 0
+    }
+    val profit   = priceInt - productCost - expenseTotal
     val isProfit = profit >= 0
 
-    val hasQtyErrors = materials.any { material ->
-        if (material.id !in selectedIds) return@any false
-        val qty = parseQty(quantities[material.id])
-        val available = availableStock(material, initialSale)
-        qty <= 0.0 || qty > available
-    }
-    val isValid = name.isNotBlank() && price.isNotBlank() && channel.isNotBlank() && !hasQtyErrors
+    val isValid = name.isNotBlank() && price.isNotBlank() && channel.isNotBlank()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -70,6 +75,7 @@ fun AddSaleBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -82,16 +88,71 @@ fun AddSaleBottomSheet(
 
             Spacer(Modifier.height(4.dp))
 
+            // Name field
             OutlinedTextField(
                 value = name,
-                onValueChange = { input ->
-                    name = input.replaceFirstChar { it.uppercase() }
-                },
+                onValueChange = { name = it.replaceFirstChar { c -> c.uppercase() } },
                 label = { Text("Название") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = fieldColors()
+                colors = saleFieldColors()
             )
+
+            // Product selector
+            ExposedDropdownMenuBox(
+                expanded = productMenuExpanded,
+                onExpandedChange = { productMenuExpanded = it },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = selectedProduct?.name ?: "Без товара",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Товар") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = productMenuExpanded)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = saleFieldColors()
+                )
+                ExposedDropdownMenu(
+                    expanded = productMenuExpanded,
+                    onDismissRequest = { productMenuExpanded = false },
+                    containerColor = Surface
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Без товара", style = MaterialTheme.typography.bodyLarge, color = Muted) },
+                        onClick = {
+                            selectedProductId = null
+                            productMenuExpanded = false
+                        }
+                    )
+                    availableProducts.forEach { product ->
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(product.name, style = MaterialTheme.typography.bodyLarge, color = Ink)
+                                    Text(
+                                        "Остаток: ${product.quantity} · ${product.expectedSalePrice} ₽",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Muted
+                                    )
+                                }
+                            },
+                            onClick = {
+                                selectedProductId = product.id
+                                if (price.isEmpty()) price = "${product.expectedSalePrice}"
+                                productMenuExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Price field
             OutlinedTextField(
                 value = price,
                 onValueChange = { input ->
@@ -100,115 +161,113 @@ fun AddSaleBottomSheet(
                 label = { Text("Цена продажи, ₽") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = fieldColors(),
+                colors = saleFieldColors(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
+
+            // Channel field
             OutlinedTextField(
                 value = channel,
-                onValueChange = { input ->
-                    channel = input.replaceFirstChar { it.uppercase() }
-                },
+                onValueChange = { channel = it.replaceFirstChar { c -> c.uppercase() } },
                 label = { Text("Канал продажи") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = fieldColors()
+                colors = saleFieldColors()
             )
 
-            if (materials.isNotEmpty()) {
-                Text("Выбери материалы:", style = MaterialTheme.typography.titleMedium, color = Ink)
+            // Expenses section
+            Text("Дополнительные расходы:", style = MaterialTheme.typography.titleMedium, color = Ink)
 
-                LazyColumn(modifier = Modifier.heightIn(max = 240.dp)) {
-                    items(materials) { material ->
-                        val isSelected = material.id in selectedIds
-                        val available  = availableStock(material, initialSale)
-                        val qtyStr     = quantities[material.id] ?: ""
-                        val qty        = parseQty(qtyStr)
-                        val qtyError   = isSelected && (qty <= 0.0 || qty > available)
+            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                EXPENSE_OPTIONS.forEach { option ->
+                    val isChecked = option.key in selectedExpenseTypes.value
+                    val amountStr = expenseAmounts[option.key] ?: ""
+                    val amountErr = isChecked && (amountStr.isBlank() ||
+                            (amountStr.replace(',', '.').toDoubleOrNull() ?: 0.0) < 0)
 
-                        Column {
-                            Row(
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = isChecked,
+                                onCheckedChange = { checked ->
+                                    selectedExpenseTypes.value = if (checked) {
+                                        if (!expenseAmounts.containsKey(option.key))
+                                            expenseAmounts[option.key] = ""
+                                        selectedExpenseTypes.value + option.key
+                                    } else {
+                                        selectedExpenseTypes.value - option.key
+                                    }
+                                },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor   = Gold,
+                                    uncheckedColor = Divider
+                                )
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                option.label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Ink
+                            )
+                        }
+                        if (isChecked) {
+                            OutlinedTextField(
+                                value = amountStr,
+                                onValueChange = { input ->
+                                    if (input.all { it.isDigit() || it == ',' })
+                                        expenseAmounts[option.key] = input
+                                },
+                                label = { Text("Сумма, ₽") },
+                                isError = amountErr,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .toggleable(
-                                        value = isSelected,
-                                        onValueChange = { checked ->
-                                            selectedIds = if (checked) {
-                                                if (!quantities.containsKey(material.id))
-                                                    quantities[material.id] = "1"
-                                                selectedIds + material.id
-                                            } else {
-                                                selectedIds - material.id
-                                            }
-                                        }
-                                    )
-                                    .padding(vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Checkbox(
-                                    checked = isSelected,
-                                    onCheckedChange = null,
-                                    colors = CheckboxDefaults.colors(
-                                        checkedColor   = Gold,
-                                        uncheckedColor = Divider
-                                    )
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        material.name,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = Ink
-                                    )
-                                    Text(
-                                        "Остаток: ${formatQty(available)} ${material.unit}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = if (available <= 0.0) Loss else Muted
-                                    )
-                                }
-                            }
-
-                            if (isSelected) {
-                                OutlinedTextField(
-                                    value = qtyStr,
-                                    onValueChange = { input ->
-                                        if (input.all { it.isDigit() || it == ',' })
-                                            quantities[material.id] = input
-                                    },
-                                    label = { Text("Кол-во (${material.unit})") },
-                                    isError = qtyError,
-                                    supportingText = if (qtyError) {
-                                        { Text("Макс. ${formatQty(available)}", color = Loss) }
-                                    } else null,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = 40.dp)
-                                        .padding(bottom = 4.dp),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = fieldColors(),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    singleLine = true
-                                )
-                            }
+                                    .padding(start = 40.dp)
+                                    .padding(bottom = 4.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = saleFieldColors(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true
+                            )
                         }
                     }
                 }
             }
 
+            // Profit summary
             Surface(
                 color = if (isProfit) ProfitBg else LossBg,
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column {
-                        Text("СЕБЕСТОИМОСТЬ", style = Eyebrow, color = Muted)
-                        Text("$costSum ₽", style = NumberLg, color = Ink)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text("СЕБЕСТОИМОСТЬ", style = Eyebrow, color = Muted)
+                            Text("$productCost ₽", style = NumberLg, color = Ink)
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("РАСХОДЫ", style = Eyebrow, color = Muted)
+                            Text("$expenseTotal ₽", style = NumberLg, color = Ink)
+                        }
                     }
-                    Column(horizontalAlignment = Alignment.End) {
+                    HorizontalDivider(color = androidx.compose.ui.graphics.Color(0x20000000), thickness = 1.dp)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text("ПРИБЫЛЬ", style = Eyebrow, color = Muted)
                         Text(
                             "$profit ₽",
@@ -221,16 +280,20 @@ fun AddSaleBottomSheet(
 
             Button(
                 onClick = {
-                    val materialUsages = materials
-                        .filter { it.id in selectedIds }
-                        .mapNotNull { material ->
-                            val qty = parseQty(quantities[material.id])
-                            if (qty <= 0.0) null else MaterialWithUsage(material, qty)
+                    val expenseEntities = EXPENSE_OPTIONS
+                        .filter { it.key in selectedExpenseTypes.value }
+                        .mapNotNull { option ->
+                            val amount = expenseAmounts[option.key]
+                                ?.replace(',', '.')?.toDoubleOrNull()?.toInt() ?: return@mapNotNull null
+                            if (amount <= 0) null
+                            else SaleExpenseEntity(saleId = 0, expenseType = option.key, amount = amount)
                         }
-                    onConfirm(name.trimEnd(), priceInt, channel.trimEnd(), materialUsages)
+                    onConfirm(name.trimEnd(), priceInt, channel.trimEnd(), selectedProductId, expenseEntities)
                 },
                 enabled = isValid,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
                 shape = RoundedCornerShape(100.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor         = Ink,
@@ -248,20 +311,9 @@ fun AddSaleBottomSheet(
     }
 }
 
-private fun availableStock(material: MaterialEntity, initialSale: SaleWithMaterials?): Double {
-    val oldUsed = initialSale?.materials?.find { it.material.id == material.id }?.usedQuantity ?: 0.0
-    return material.quantity + oldUsed
-}
-
-private fun parseQty(str: String?): Double =
-    str?.replace(',', '.')?.toDoubleOrNull() ?: 0.0
-
-private fun formatQty(qty: Double): String =
-    if (qty == qty.toLong().toDouble()) qty.toLong().toString() else "%.2f".format(qty)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun fieldColors() = OutlinedTextFieldDefaults.colors(
+private fun saleFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor      = Gold,
     unfocusedBorderColor    = Divider,
     focusedContainerColor   = GoldBg,

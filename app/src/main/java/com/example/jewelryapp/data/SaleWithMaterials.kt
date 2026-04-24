@@ -29,5 +29,6 @@ data class SaleWithMaterialsRoom(
 // Public type used everywhere in UI and ViewModel
 data class SaleWithMaterials(
     val sale: SaleEntity,
-    val materials: List<MaterialWithUsage>
+    val materials: List<MaterialWithUsage>,
+    val expenses: List<SaleExpenseEntity> = emptyList()
 )

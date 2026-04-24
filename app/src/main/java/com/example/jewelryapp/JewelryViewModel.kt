@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.jewelryapp.data.JewelryRepository
 import com.example.jewelryapp.data.MaterialEntity
 import com.example.jewelryapp.data.MaterialWithUsage
+import com.example.jewelryapp.data.ProductWithMaterials
+import com.example.jewelryapp.data.SaleExpenseEntity
 import com.example.jewelryapp.data.SaleWithMaterials
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -33,10 +35,20 @@ class JewelryViewModel(
             initialValue = emptyList()
         )
 
+    val products = repository
+        .getAllProductsWithMaterials()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
     fun clearError() { _error.value = null }
+
+    // ── Material actions ───────────────────────────────────────────────────────
 
     fun addMaterial(name: String, cost: Int, quantity: Double, unit: String) {
         viewModelScope.launch { repository.addMaterial(name, cost, quantity, unit) }
@@ -50,13 +62,43 @@ class JewelryViewModel(
         viewModelScope.launch { repository.deleteMaterial(material) }
     }
 
-    fun deleteSale(sale: SaleWithMaterials) {
-        viewModelScope.launch { repository.deleteSale(sale) }
+    // ── Product actions ────────────────────────────────────────────────────────
+
+    fun addProduct(name: String, expectedSalePrice: Int, materials: List<MaterialWithUsage>) {
+        viewModelScope.launch {
+            val err = repository.addProduct(name, expectedSalePrice, materials)
+            if (err != null) _error.value = err
+        }
     }
 
-    fun addSale(name: String, salePrice: Int, channel: String, materials: List<MaterialWithUsage>) {
+    fun updateProduct(
+        productId: Int,
+        name: String,
+        expectedSalePrice: Int,
+        oldMaterials: List<MaterialWithUsage>,
+        newMaterials: List<MaterialWithUsage>
+    ) {
         viewModelScope.launch {
-            val err = repository.addSale(name, salePrice, channel, materials)
+            val err = repository.updateProduct(productId, name, expectedSalePrice, oldMaterials, newMaterials)
+            if (err != null) _error.value = err
+        }
+    }
+
+    fun deleteProduct(product: ProductWithMaterials) {
+        viewModelScope.launch { repository.deleteProduct(product) }
+    }
+
+    // ── Sale actions ───────────────────────────────────────────────────────────
+
+    fun addSale(
+        name: String,
+        salePrice: Int,
+        channel: String,
+        productId: Int?,
+        expenses: List<SaleExpenseEntity>
+    ) {
+        viewModelScope.launch {
+            val err = repository.addSale(name, salePrice, channel, productId, expenses)
             if (err != null) _error.value = err
         }
     }
@@ -66,12 +108,17 @@ class JewelryViewModel(
         name: String,
         salePrice: Int,
         channel: String,
-        oldMaterials: List<MaterialWithUsage>,
-        newMaterials: List<MaterialWithUsage>
+        oldSale: SaleWithMaterials,
+        newProductId: Int?,
+        expenses: List<SaleExpenseEntity>
     ) {
         viewModelScope.launch {
-            val err = repository.updateSale(saleId, name, salePrice, channel, oldMaterials, newMaterials)
+            val err = repository.updateSale(saleId, name, salePrice, channel, oldSale, newProductId, expenses)
             if (err != null) _error.value = err
         }
+    }
+
+    fun deleteSale(sale: SaleWithMaterials) {
+        viewModelScope.launch { repository.deleteSale(sale) }
     }
 }

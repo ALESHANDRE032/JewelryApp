@@ -17,17 +17,26 @@ interface SaleDao {
     @Insert
     suspend fun insertSaleMaterialRefs(refs: List<SaleMaterialCrossRef>)
 
+    @Insert
+    suspend fun insertSaleExpenses(expenses: List<SaleExpenseEntity>)
+
     @Update
     suspend fun updateSale(sale: SaleEntity)
 
     @Query("DELETE FROM sale_material_cross_ref WHERE saleId = :saleId")
     suspend fun deleteSaleMaterialRefs(saleId: Int)
 
+    @Query("DELETE FROM sale_expenses WHERE saleId = :saleId")
+    suspend fun deleteSaleExpenses(saleId: Int)
+
     @Delete
     suspend fun deleteSale(sale: SaleEntity)
 
     @Query("SELECT * FROM sale_material_cross_ref")
     fun getAllCrossRefs(): Flow<List<SaleMaterialCrossRef>>
+
+    @Query("SELECT * FROM sale_expenses")
+    fun getAllSaleExpenses(): Flow<List<SaleExpenseEntity>>
 
     @Transaction
     @Query("SELECT * FROM sales ORDER BY id DESC")

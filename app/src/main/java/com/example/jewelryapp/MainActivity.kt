@@ -16,7 +16,8 @@ class MainActivity : ComponentActivity() {
         val database = AppDatabase.getDatabase(this)
         val repository = JewelryRepository(
             materialDao = database.materialDao(),
-            saleDao = database.saleDao()
+            saleDao = database.saleDao(),
+            productDao = database.productDao()
         )
         val factory = JewelryViewModelFactory(repository)
 
