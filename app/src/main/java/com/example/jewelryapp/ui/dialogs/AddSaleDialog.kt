@@ -1,29 +1,26 @@
 package com.example.jewelryapp.ui.dialogs
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.jewelryapp.data.ExpenseType
 import com.example.jewelryapp.data.ProductEntity
 import com.example.jewelryapp.data.SaleExpenseEntity
 import com.example.jewelryapp.data.SaleWithMaterials
 import com.example.jewelryapp.ui.theme.*
-
-private data class ExpenseOption(val key: String, val label: String)
-
-private val EXPENSE_OPTIONS = listOf(
-    ExpenseOption("RENT",              "Аренда"),
-    ExpenseOption("DELIVERY_TO_STORE", "Доставка в магазин"),
-    ExpenseOption("COURIER",           "Курьер / доставка клиенту"),
-    ExpenseOption("STORE_COMMISSION",  "Комиссия магазина")
-)
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,14 +28,20 @@ fun AddSaleBottomSheet(
     products: List<ProductEntity>,
     initialSale: SaleWithMaterials? = null,
     onDismiss: () -> Unit,
-    onConfirm: (name: String, price: Int, channel: String, productId: Int?, expenses: List<SaleExpenseEntity>) -> Unit
+    onConfirm: (name: String, price: Int, channel: String, productId: Int?, expenses: List<SaleExpenseEntity>, comment: String, saleDate: Long) -> Unit
 ) {
-    var name    by remember { mutableStateOf(initialSale?.sale?.name ?: "") }
     var price   by remember { mutableStateOf(if (initialSale != null) "${initialSale.sale.salePrice}" else "") }
     var channel by remember { mutableStateOf(initialSale?.sale?.channel ?: "") }
+    var comment by remember { mutableStateOf(initialSale?.sale?.comment ?: "") }
+    var saleDate by remember {
+        mutableStateOf(
+            initialSale?.sale?.saleDate?.takeIf { it > 0L } ?: LocalDate.now().toEpochDay()
+        )
+    }
 
     var selectedProductId   by remember { mutableStateOf<Int?>(initialSale?.sale?.productId) }
     var productMenuExpanded by remember { mutableStateOf(false) }
+    var showDatePicker      by remember { mutableStateOf(false) }
 
     val selectedExpenseTypes = remember {
         mutableStateOf(initialSale?.expenses?.map { it.expenseType }?.toSet() ?: emptySet<String>())
@@ -49,7 +52,6 @@ fun AddSaleBottomSheet(
         }
     }
 
-    // Products available for selection: qty > 0, OR the one already selected in edit mode
     val availableProducts = remember(products, initialSale) {
         val editProductId = initialSale?.sale?.productId
         products.filter { it.quantity > 0 || it.id == editProductId }
@@ -65,7 +67,33 @@ fun AddSaleBottomSheet(
     val profit   = priceInt - productCost - expenseTotal
     val isProfit = profit >= 0
 
-    val isValid = name.isNotBlank() && price.isNotBlank() && channel.isNotBlank()
+    val isValid = selectedProductId != null && price.isNotBlank() && channel.isNotBlank()
+
+    val saleDateDisplay = remember(saleDate) {
+        LocalDate.ofEpochDay(saleDate).format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = saleDate * 86_400_000L
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        saleDate = millis / 86_400_000L
+                    }
+                    showDatePicker = false
+                }) { Text("ОК") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Отмена") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -88,16 +116,6 @@ fun AddSaleBottomSheet(
 
             Spacer(Modifier.height(4.dp))
 
-            // Name field
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it.replaceFirstChar { c -> c.uppercase() } },
-                label = { Text("Название") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = saleFieldColors()
-            )
-
             // Product selector
             ExposedDropdownMenuBox(
                 expanded = productMenuExpanded,
@@ -105,13 +123,14 @@ fun AddSaleBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
-                    value = selectedProduct?.name ?: "Без товара",
+                    value = selectedProduct?.name ?: "Выберите товар",
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Товар") },
                     trailingIcon = {
                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = productMenuExpanded)
                     },
+                    isError = !isValid && selectedProductId == null && price.isNotBlank(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .menuAnchor(),
@@ -123,13 +142,6 @@ fun AddSaleBottomSheet(
                     onDismissRequest = { productMenuExpanded = false },
                     containerColor = Surface
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Без товара", style = MaterialTheme.typography.bodyLarge, color = Muted) },
-                        onClick = {
-                            selectedProductId = null
-                            productMenuExpanded = false
-                        }
-                    )
                     availableProducts.forEach { product ->
                         DropdownMenuItem(
                             text = {
@@ -175,11 +187,28 @@ fun AddSaleBottomSheet(
                 colors = saleFieldColors()
             )
 
+            // Date field
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = saleDateDisplay,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Дата продажи") },
+                    trailingIcon = {
+                        Icon(Icons.Filled.DateRange, contentDescription = null, tint = Muted)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = saleFieldColors()
+                )
+                Box(modifier = Modifier.matchParentSize().clickable { showDatePicker = true })
+            }
+
             // Expenses section
             Text("Дополнительные расходы:", style = MaterialTheme.typography.titleMedium, color = Ink)
 
             Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                EXPENSE_OPTIONS.forEach { option ->
+                ExpenseType.ALL.forEach { option ->
                     val isChecked = option.key in selectedExpenseTypes.value
                     val amountStr = expenseAmounts[option.key] ?: ""
                     val amountErr = isChecked && (amountStr.isBlank() ||
@@ -209,11 +238,7 @@ fun AddSaleBottomSheet(
                                 )
                             )
                             Spacer(Modifier.width(8.dp))
-                            Text(
-                                option.label,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = Ink
-                            )
+                            Text(option.label, style = MaterialTheme.typography.bodyLarge, color = Ink)
                         }
                         if (isChecked) {
                             OutlinedTextField(
@@ -237,6 +262,18 @@ fun AddSaleBottomSheet(
                     }
                 }
             }
+
+            // Comment field
+            OutlinedTextField(
+                value = comment,
+                onValueChange = { comment = it },
+                label = { Text("Комментарий (необязательно)") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = saleFieldColors(),
+                minLines = 2,
+                maxLines = 4
+            )
 
             // Profit summary
             Surface(
@@ -280,7 +317,7 @@ fun AddSaleBottomSheet(
 
             Button(
                 onClick = {
-                    val expenseEntities = EXPENSE_OPTIONS
+                    val expenseEntities = ExpenseType.ALL
                         .filter { it.key in selectedExpenseTypes.value }
                         .mapNotNull { option ->
                             val amount = expenseAmounts[option.key]
@@ -288,7 +325,15 @@ fun AddSaleBottomSheet(
                             if (amount <= 0) null
                             else SaleExpenseEntity(saleId = 0, expenseType = option.key, amount = amount)
                         }
-                    onConfirm(name.trimEnd(), priceInt, channel.trimEnd(), selectedProductId, expenseEntities)
+                    onConfirm(
+                        selectedProduct?.name?.trimEnd() ?: "",
+                        priceInt,
+                        channel.trimEnd(),
+                        selectedProductId,
+                        expenseEntities,
+                        comment.trimEnd(),
+                        saleDate
+                    )
                 },
                 enabled = isValid,
                 modifier = Modifier

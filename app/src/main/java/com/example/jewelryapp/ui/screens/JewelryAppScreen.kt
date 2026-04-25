@@ -115,8 +115,8 @@ fun JewelryAppScreen(viewModel: JewelryViewModel) {
         AddSaleBottomSheet(
             products  = products.map { it.product },
             onDismiss = { showSaleSheet = false },
-            onConfirm = { name, price, channel, productId, expenses ->
-                viewModel.addSale(name, price, channel, productId, expenses)
+            onConfirm = { name, price, channel, productId, expenses, comment, saleDate ->
+                viewModel.addSale(name, price, channel, productId, expenses, comment, saleDate)
                 showSaleSheet = false
             }
         )
@@ -127,8 +127,8 @@ fun JewelryAppScreen(viewModel: JewelryViewModel) {
             products     = products.map { it.product },
             initialSale  = sale,
             onDismiss    = { editingSale = null },
-            onConfirm    = { name, price, channel, productId, expenses ->
-                viewModel.updateSale(sale.sale.id, name, price, channel, sale, productId, expenses)
+            onConfirm    = { name, price, channel, productId, expenses, comment, saleDate ->
+                viewModel.updateSale(sale.sale.id, name, price, channel, sale, productId, expenses, comment, saleDate)
                 editingSale = null
             }
         )

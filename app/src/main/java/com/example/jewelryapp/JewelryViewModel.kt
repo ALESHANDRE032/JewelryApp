@@ -95,10 +95,12 @@ class JewelryViewModel(
         salePrice: Int,
         channel: String,
         productId: Int?,
-        expenses: List<SaleExpenseEntity>
+        expenses: List<SaleExpenseEntity>,
+        comment: String = "",
+        saleDate: Long = 0L
     ) {
         viewModelScope.launch {
-            val err = repository.addSale(name, salePrice, channel, productId, expenses)
+            val err = repository.addSale(name, salePrice, channel, productId, expenses, comment, saleDate)
             if (err != null) _error.value = err
         }
     }
@@ -110,10 +112,12 @@ class JewelryViewModel(
         channel: String,
         oldSale: SaleWithMaterials,
         newProductId: Int?,
-        expenses: List<SaleExpenseEntity>
+        expenses: List<SaleExpenseEntity>,
+        comment: String = "",
+        saleDate: Long = 0L
     ) {
         viewModelScope.launch {
-            val err = repository.updateSale(saleId, name, salePrice, channel, oldSale, newProductId, expenses)
+            val err = repository.updateSale(saleId, name, salePrice, channel, oldSale, newProductId, expenses, comment, saleDate)
             if (err != null) _error.value = err
         }
     }

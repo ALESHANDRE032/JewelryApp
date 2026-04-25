@@ -12,5 +12,7 @@ data class SaleEntity(
     val channel: String,
     val profit: Int,
     val productId: Int? = null,
-    val extraExpensesCost: Int = 0
+    val extraExpensesCost: Int = 0,
+    val comment: String = "",
+    val saleDate: Long = 0L
 )

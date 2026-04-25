@@ -51,11 +51,12 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            Column {
+            Column(Modifier.weight(1f)) {
                 Text("Мастерская", style = MaterialTheme.typography.bodyLarge, color = Muted)
                 Spacer(Modifier.height(4.dp))
                 Text(heroSubtitle, style = DisplayMd, color = Ink)
             }
+            Spacer(Modifier.width(8.dp))
             Text(
                 text = today,
                 style = MaterialTheme.typography.bodySmall,

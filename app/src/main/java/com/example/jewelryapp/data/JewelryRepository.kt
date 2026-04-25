@@ -166,7 +166,9 @@ class JewelryRepository(
         salePrice: Int,
         channel: String,
         productId: Int?,
-        expenses: List<SaleExpenseEntity>
+        expenses: List<SaleExpenseEntity>,
+        comment: String = "",
+        saleDate: Long = 0L
     ): String? {
         var productCost = 0
         if (productId != null) {
@@ -183,7 +185,9 @@ class JewelryRepository(
                 channel = channel,
                 profit = profit,
                 productId = productId,
-                extraExpensesCost = extraExpensesCost
+                extraExpensesCost = extraExpensesCost,
+                comment = comment,
+                saleDate = saleDate
             )
         ).toInt()
         if (expenses.isNotEmpty()) {
@@ -207,7 +211,9 @@ class JewelryRepository(
         channel: String,
         oldSale: SaleWithMaterials,
         newProductId: Int?,
-        expenses: List<SaleExpenseEntity>
+        expenses: List<SaleExpenseEntity>,
+        comment: String = "",
+        saleDate: Long = 0L
     ): String? {
         val oldProductId = oldSale.sale.productId
 
@@ -253,7 +259,9 @@ class JewelryRepository(
                 channel = channel,
                 profit = profit,
                 productId = newProductId,
-                extraExpensesCost = extraExpensesCost
+                extraExpensesCost = extraExpensesCost,
+                comment = comment,
+                saleDate = saleDate
             )
         )
         saleDao.deleteSaleExpenses(saleId)
